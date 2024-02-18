@@ -3,5 +3,8 @@
 
 !.gitignore
 !*.example
+!.isort.cfg
+!.python-version
+!.flake8
 
 __pycache__
