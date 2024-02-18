@@ -9,7 +9,7 @@ import keyboard
 import pyautogui
 from PIL import Image
 
-from adreader.utils import chown
+from adreader.utils import chown, make_tarfile, purge_png
 from adreader.utils.cache import Cache
 from adreader.gui import Point, Box
 
@@ -142,7 +142,12 @@ def capture(capture, pages, title, delay, coord=None):
         images[0].save(
             pdf_path, "PDF", resolution=100.0, save_all=True, append_images=images[1:]
         )
+        make_tarfile(PREFIX, f'{PREFIX}/{title}.tgz')
+        purge_png(PREFIX)
 
     if os.name != 'nt':
         chown(str(PREFIX), UID, GID)
+    
+    
     Path(PREFIX).rename(target)
+    
