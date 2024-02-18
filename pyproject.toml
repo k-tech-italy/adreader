@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "adreader"
+version = "0.1.0"
+description = ""
+authors = ["Giovanni Bronzini <g.bronzini@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.scripts]
+adreader = "adreader.cli:cli"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pyautogui = "^0.9.54"
+click = "^8.1.7"
+keyboard = "^0.13.5"
+pyscreeze = "^0.1.30"
+opencv-python = "^4.9.0.80"
+
+
+[tool.poetry.group.dev.dependencies]
+isort = "^5.13.2"
+flake8 = "^7.0.0"
+pre-commit = "^3.6.1"
+bumpversion = "^0.6.0"
+pytest = "^8.0.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
