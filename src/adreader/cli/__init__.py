@@ -19,7 +19,7 @@ GID = 20
 
 THINK = 0.0
 
-TITLE = 'ManagementAndAccounting'
+TITLE = 'Prova'
 PREFIX = '.tmp'
 TARGET = '.books'
 
@@ -75,7 +75,7 @@ def capture(capture, pages, coord=None):
     else:
         coord = cache.get('coord')
 
-    if 'coord' is None:
+    if coord is None:
         click.secho('ERROR: No cache found and no coord option provided', fg='red', bold=True)
         return
 
