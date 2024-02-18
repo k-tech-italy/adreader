@@ -68,7 +68,6 @@ def coord():
 def capture(capture, pages, title, coord=None):
     """Capture the screenshots"""
     cache = Cache().read()
-    return
 
     if coord:
         click.echo(f'Storing coordinates {coord} in cache')
