@@ -119,14 +119,14 @@ def capture(capture, pages, title, delay, coord=None):
     for c in rng:
         loc = f'{PREFIX}/img{c:03}.png'
         print(f'Writing {loc}')
-        if capture:
-            im = box.capture(loc)
-            if oldim and len([(x, y) for x, y in zip(oldim.getdata(), im.getdata()) if x != y]) == 0:
-                print(f'Found last page {c}')
-                Path(loc).unlink()
-                break
-            oldim = im
-            # im.save(loc)
+        im = box.capture(loc)
+        if oldim and len([(x, y) for x, y in zip(oldim.getdata(), im.getdata()) if x != y]) == 0:
+            print(f'Found last page {c}')
+            Path(loc).unlink()
+            break
+        oldim = im
+        if not capture:
+            Path(loc).unlink()
         # sleep(0.1)
         pyautogui.hotkey('command', 'right')
         pyautogui.click(box.tl.x + 5, box.tl.y + 5)
