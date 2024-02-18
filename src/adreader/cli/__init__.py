@@ -19,7 +19,6 @@ GID = 20
 
 THINK = 0.0
 
-TITLE = 'Prova'
 PREFIX = '.tmp'
 TARGET = '.books'
 
@@ -62,12 +61,14 @@ def coord():
 
 
 @cli.command()
+@click.argument('title')
 @click.option('--coord', help='Screenshot area top-sx(x,y),bottm-dx(x,y) e.g. 200,100,100,500')
 @click.option('-P', '--pages', help='Number of pages to capture', type=click.INT, default=0)
 @click.option( '--capture/--no-capture', default=False, help='Number of pages to capture')
-def capture(capture, pages, coord=None):
+def capture(capture, pages, title, coord=None):
     """Capture the screenshots"""
     cache = Cache().read()
+    return
 
     if coord:
         click.echo(f'Storing coordinates {coord} in cache')
@@ -95,7 +96,7 @@ def capture(capture, pages, coord=None):
     pyautogui.moveTo(box.tl.x - 20, box.tl.y - 20)  # move away
 
     if pages:
-        rng = range(pages)
+        rng = range(pages+1)
     else:
         rng = range(2000)
 
@@ -122,10 +123,10 @@ def capture(capture, pages, coord=None):
             Image.open(f'{PREFIX}/img{z:03}.png')
             for z in range(c)
         ]
-        pdf_path = f'{PREFIX}/{TITLE}.pdf'
+        pdf_path = f'{PREFIX}/{title}.pdf'
         images[0].save(
             pdf_path, "PDF", resolution=100.0, save_all=True, append_images=images[1:]
         )
 
     chown(str(PREFIX), UID, GID)
-    Path(PREFIX).rename(TARGET / TITLE)
+    Path(PREFIX).rename(TARGET / title)
