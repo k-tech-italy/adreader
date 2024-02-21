@@ -15,6 +15,7 @@ click = "^8.1.7"
 keyboard = "^0.13.5"
 pyscreeze = "^0.1.30"
 opencv-python = "^4.9.0.80"
+python-dotenv = "^1.0.1"
 
 
 [tool.poetry.group.dev.dependencies]

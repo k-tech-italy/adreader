@@ -12,11 +12,14 @@ from PIL import Image
 from adreader.utils import chown, make_tarfile, purge_png
 from adreader.utils.cache import Cache
 from adreader.gui import Point, Box
+from dotenv import load_dotenv
+
+load_dotenv()
 
 UID = 501
 GID = 20
 
-THINK = 0.0
+THINK = float(os.getenv('THINK', 0.0))
 
 PREFIX = '.tmp'
 TARGET = '.books'
@@ -25,6 +28,7 @@ PREFIX = Path(PREFIX)
 TARGET = Path(TARGET)
 
 SAMPLE = (Path(__file__).parent.parent / 'corners/sample.png').absolute()
+BUTTON = (Path(__file__).parent.parent / 'corners/button.png').absolute()
 
 if not TARGET.exists():
     TARGET.mkdir()
@@ -40,7 +44,11 @@ def cli():
 
 @cli.command()
 @click.option('-K', '--key', help='Key to press to capture coordinates', default=lambda *args, **kwargs: 'control+shift' if os.name =='nt' else 'command+shift', show_default=True)
-def coord(key):
+@click.option('-B', '--button/--no-button', 
+              is_flag=True, help='Capture coordinates for next button',
+              default=False,
+              show_default=True)
+def coord(key, button):
     """Get coordinates for first page.
     
     Keybind (-K) defaults to  'control+shift' on Windows' else 'command+shift'
@@ -57,13 +65,21 @@ def coord(key):
     keyboard.wait(key)
     bottom_right = Point(*pyautogui.position())
     box = Box(top_left, bottom_right)
+    
+    if button:
+        loc = str(BUTTON)
+    else:
+        loc = str(SAMPLE)
     im = pyautogui.screenshot(
-        imageFilename=str(SAMPLE),
+        imageFilename=loc,
         region=box.area
     )
-    im.save(SAMPLE)
-    click.echo(F'sudo adreader capture {box}')
-    Cache().write(coord=box)
+    im.save(loc)
+    click.echo(F'sudo adreader capture {box} in {loc}')
+    if button:
+        Cache().write(button=box)
+    else:
+        Cache().write(coord=box)
 
 
 @cli.command()
@@ -72,9 +88,14 @@ def coord(key):
 @click.option('-P', '--pages', help='Number of pages to capture', type=click.INT, default=0, show_default=True)
 @click.option('-D', '--delay', help='Number of of seconds to wait before starting capture', type=click.INT, default=3, show_default=True)
 @click.option( '--capture/--no-capture', default=False, help='Confirm capture. Otherwise simulate only')
-def capture(capture, pages, title, delay, coord=None):
+@click.option('-B', '--button/--no-button', 
+              is_flag=True, help='Use the button for going to next page',
+              default=False,
+              show_default=True)
+def capture(capture, pages, title, delay, button, coord=None):
     """Capture the screenshots"""
     cache = Cache().read()
+    button = button and cache['button']
 
     if coord:
         click.echo(f'Storing coordinates {coord} in cache')
@@ -128,10 +149,8 @@ def capture(capture, pages, title, delay, coord=None):
         if not capture:
             Path(loc).unlink()
         # sleep(0.1)
-        pyautogui.hotkey('command', 'right')
-        pyautogui.click(box.tl.x + 5, box.tl.y + 5)
-        pyautogui.moveTo(box.tl.x - 20, box.tl.y - 20)  # move away
-        sleep(THINK)
+        # pyautogui.hotkey('command', 'right')
+        go_next(box, button, cache)
 
     if capture:
         images = [
@@ -150,4 +169,13 @@ def capture(capture, pages, title, delay, coord=None):
     
     
     Path(PREFIX).rename(target)
+
+def go_next(box, button, cache):
+    if button:
+        print(f'clicking center {button.center}')
+        pyautogui.click(*button.center)
+    else:
+        pyautogui.click(box.tl.x + 5, box.tl.y + 5)
+        pyautogui.moveTo(box.tl.x - 20, box.tl.y - 20)  # move away
+    sleep(THINK)
     

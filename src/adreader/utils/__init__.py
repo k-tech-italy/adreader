@@ -2,9 +2,11 @@ import os
 import tarfile
 from pathlib import Path
 import click
+from dotenv import load_dotenv
 
+load_dotenv()
 
-RATIO = 0.5
+RATIO = float(os.getenv('RATIO', 0.5))
 
 
 def chown(path, id: int, gid: int):

@@ -70,6 +70,10 @@ class Box(ParsableMixin):
         return self.tl.x, self.tl.y, self.br.x, self.br.y
 
     @property
+    def center(self):
+        return int(self.tl.x + (self.br.x - self.tl.x)/2), int(self.tl.y + (self.br.y - self.tl.y)/2)
+
+    @property
     def scaled(self):
         """Return a Box scaled by RATIO."""
         return Box(self.tl, Point(self.br.x * RATIO, self.br.y * RATIO))
