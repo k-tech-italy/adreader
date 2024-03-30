@@ -85,6 +85,7 @@ def coord(key, button):
 @cli.command()
 @click.argument('title')
 @click.option('--coord', help='Screenshot area top-sx(x,y),bottm-dx(x,y) e.g. 200,100,100,500')
+@click.option( '-K', '--key', default=None, help='Key to press for next screenshot. Eg. left')
 @click.option('-P', '--pages', help='Number of pages to capture', type=click.INT, default=0, show_default=True)
 @click.option('-D', '--delay', help='Number of of seconds to wait before starting capture', type=click.INT, default=3, show_default=True)
 @click.option( '--capture/--no-capture', default=False, help='Confirm capture. Otherwise simulate only')
@@ -92,7 +93,7 @@ def coord(key, button):
               is_flag=True, help='Use the button for going to next page',
               default=False,
               show_default=True)
-def capture(capture, pages, title, delay, button, coord=None):
+def capture(capture, pages, title, delay, button, key, coord=None):
     """Capture the screenshots"""
     cache = Cache().read()
     button = button and cache['button']
@@ -126,9 +127,8 @@ def capture(capture, pages, title, delay, button, coord=None):
 
     sleep(delay)
 
-    pyautogui.moveTo(box.tl.x + 5, box.tl.y + 5)
-    pyautogui.click()
-    pyautogui.moveTo(box.tl.x - 20, box.tl.y - 20)  # move away
+    if not key:
+        go_next(box)
 
     if pages:
         rng = range(pages)
@@ -138,23 +138,27 @@ def capture(capture, pages, title, delay, button, coord=None):
     oldim = None
 
     for c in rng:
-        loc = f'{PREFIX}/img{c:03}.png'
+        loc = f'{PREFIX}/img{c:04}.png'
         print(f'Writing {loc}')
         im = box.capture(loc)
+        if capture:
+            im.save(loc)
         if oldim and len([(x, y) for x, y in zip(oldim.getdata(), im.getdata()) if x != y]) == 0:
             print(f'Found last page {c}')
-            Path(loc).unlink()
+            if (p := Path(loc)).exists():
+                p.unlink()
+            c -= 1
             break
         oldim = im
         if not capture:
             Path(loc).unlink()
         # sleep(0.1)
         # pyautogui.hotkey('command', 'right')
-        go_next(box, button, cache)
+        go_next(box, button, key)
 
     if capture:
         images = [
-            Image.open(f'{PREFIX}/img{z:03}.png')
+            Image.open(f'{PREFIX}/img{z:04}.png')
             for z in range(pages or c)
         ]
         pdf_path = f'{PREFIX}/{title}.pdf'
@@ -166,16 +170,21 @@ def capture(capture, pages, title, delay, button, coord=None):
 
     if os.name != 'nt':
         chown(str(PREFIX), UID, GID)
-    
-    
+
     Path(PREFIX).rename(target)
 
-def go_next(box, button, cache):
-    if button:
+
+def go_next(box, button=None, key=None):
+    if key:
+        pyautogui.press(key)
+    elif button:
         print(f'clicking center {button.center}')
         pyautogui.click(*button.center)
     else:
-        pyautogui.click(box.tl.x + 5, box.tl.y + 5)
-        pyautogui.moveTo(box.tl.x - 20, box.tl.y - 20)  # move away
+        middle = int((box.br.y + box.tl.y) / 2)
+
+        pyautogui.click(box.tl.x + 5, middle)
+        pyautogui.moveTo(box.tl.x - 20, middle)  # move away
+
     sleep(THINK)
     
