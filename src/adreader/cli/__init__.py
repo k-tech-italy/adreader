@@ -1,18 +1,21 @@
 import json
-import shutil
 import os
+import shutil
+import time
+from glob import glob
 from pathlib import Path
 from time import sleep
 
 import click
+import easyocr
 import keyboard
 import pyautogui
+from dotenv import load_dotenv
 from PIL import Image
 
+from adreader.gui import Box, Point
 from adreader.utils import chown, make_tarfile, purge_png
 from adreader.utils.cache import Cache
-from adreader.gui import Point, Box
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -32,7 +35,19 @@ BUTTON = (Path(__file__).parent.parent / 'corners/button.png').absolute()
 
 if not TARGET.exists():
     TARGET.mkdir()
-    
+
+import numpy as np
+
+
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
 
 @click.group()
 # @click.option('--count', default=1, help='Number of greetings.')
@@ -43,8 +58,12 @@ def cli():
 
 
 @cli.command()
-@click.option('-K', '--key', help='Key to press to capture coordinates', default=lambda *args, **kwargs: 'control+shift' if os.name =='nt' else 'command+shift', show_default=True)
-@click.option('-B', '--button/--no-button', 
+@click.option(
+    '-K', '--key',
+    help='Key to press to capture coordinates',
+    default=lambda *args, **kwargs: 'control+shift' if os.name in ('nt', 'posix') else
+    'command+shift', show_default=True)
+@click.option('-B', '--button/--no-button',
               is_flag=True, help='Capture coordinates for next button',
               default=False,
               show_default=True)
@@ -53,10 +72,11 @@ def coord(key, button):
     
     Keybind (-K) defaults to  'control+shift' on Windows' else 'command+shift'
     """
+    key = 'control+shift' if os.name in ('nt', 'posix') else 'command+shift'
     click.echo(
-        """Instructions
+        f"""Instructions
         1. Go to the first page and move the mouse to the top left corner of the image to capture.
-        2. Press "the key in -K parameter"
+        2. Press "the key in -K parameter {key}"
         3. Repeat for the bottom-right corner"""
     )
     keyboard.wait(key)
@@ -65,7 +85,7 @@ def coord(key, button):
     keyboard.wait(key)
     bottom_right = Point(*pyautogui.position())
     box = Box(top_left, bottom_right)
-    
+
     if button:
         loc = str(BUTTON)
     else:
@@ -82,14 +102,24 @@ def coord(key, button):
         Cache().write(coord=box)
 
 
+def capture_text(im: Path):
+    start = time.time()
+    reader = easyocr.Reader(['en'])  # this needs to run only once to load the model into memory
+    result = reader.readtext(im)
+    tot = time.time() - start
+    print(f'Captured in {tot:2.2} sec')
+    return result
+
+
 @cli.command()
 @click.argument('title')
 @click.option('--coord', help='Screenshot area top-sx(x,y),bottm-dx(x,y) e.g. 200,100,100,500')
-@click.option( '-K', '--key', default=None, help='Key to press for next screenshot. Eg. left')
+@click.option('-K', '--key', default=None, help='Key to press for next screenshot. Eg. left')
 @click.option('-P', '--pages', help='Number of pages to capture', type=click.INT, default=0, show_default=True)
-@click.option('-D', '--delay', help='Number of of seconds to wait before starting capture', type=click.INT, default=3, show_default=True)
-@click.option( '--capture/--no-capture', default=False, help='Confirm capture. Otherwise simulate only')
-@click.option('-B', '--button/--no-button', 
+@click.option('-D', '--delay', help='Number of of seconds to wait before starting capture', type=click.INT, default=3,
+              show_default=True)
+@click.option('--capture/--no-capture', default=False, help='Confirm capture. Otherwise simulate only')
+@click.option('-B', '--button/--no-button',
               is_flag=True, help='Use the button for going to next page',
               default=False,
               show_default=True)
@@ -137,26 +167,40 @@ def capture(capture, pages, title, delay, button, key, coord=None):
 
     oldim = None
 
+    txt = {}
+
+    files = glob(str(Path(PREFIX)/ '*'))
+    for f in files:
+        os.remove(f)
+
     for c in rng:
         loc = f'{PREFIX}/img{c:04}.png'
+        text = f'{PREFIX}/{title}.json'
         print(f'Writing {loc}')
         im = box.capture(loc)
         if capture:
             im.save(loc)
         if oldim and len([(x, y) for x, y in zip(oldim.getdata(), im.getdata()) if x != y]) == 0:
             print(f'Found last page {c}')
-            if (p := Path(loc)).exists():
-                p.unlink()
+            # if (p := Path(loc)).exists():
+            #     p.unlink()
             c -= 1
             break
         oldim = im
+
+        go_next(box, button, key)
+
+        txt[c] = capture_text(str(Path(loc)))
+
         if not capture:
             Path(loc).unlink()
         # sleep(0.1)
         # pyautogui.hotkey('command', 'right')
-        go_next(box, button, key)
 
     if capture:
+        with Path(text).open(mode="wt") as fo:
+            fo.write(json.dumps(txt, cls=NpEncoder, indent=2))
+
         images = [
             Image.open(f'{PREFIX}/img{z:04}.png')
             for z in range(pages or c)
@@ -187,4 +231,3 @@ def go_next(box, button=None, key=None):
         pyautogui.moveTo(box.tl.x - 20, middle)  # move away
 
     sleep(THINK)
-    

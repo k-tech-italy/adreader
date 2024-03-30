@@ -28,15 +28,16 @@ def ratio(*args):
 
 
 def make_tarfile(source_dir: Path, output_filename: str):
-    pngs = source_dir.glob('*.png')
+    pngs = [x for x in source_dir.glob('*.png')] + [x for x in source_dir.glob('*.json')]
     click.echo(f'Archiving images in {source_dir} to {output_filename}')
-    
+
     with tarfile.open(output_filename, "w:gz") as tar:
         for p in pngs:
             print(f'adding {p} as {p.name}')
             tar.add(p.absolute(), arcname=str(p.name))
 
+
 def purge_png(source_dir: Path):
-    pngs = source_dir.glob('*.png')
+    pngs = [x for x in source_dir.glob('*.png')] + [x for x in source_dir.glob('*.json')]
     for p in pngs:
         p.unlink()
