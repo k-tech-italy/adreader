@@ -1,0 +1,5 @@
+ "{{ pnum }}": [
+{%- for entry in page %}
+  {% include "entry.j2" with context -%}{% if not loop.last %},{% endif %}
+{%- endfor %}
+  ]

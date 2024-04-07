@@ -1,5 +1,6 @@
 import json
 import os
+import platform
 import shutil
 import time
 from glob import glob
@@ -9,6 +10,7 @@ from time import sleep
 import click
 import easyocr
 import keyboard
+import numpy as np
 import pyautogui
 from dotenv import load_dotenv
 from PIL import Image
@@ -16,6 +18,7 @@ from PIL import Image
 from adreader.gui import Box, Point
 from adreader.utils import chown, make_tarfile, purge_png
 from adreader.utils.cache import Cache
+from adreader.utils.renderer import reader_txt
 
 load_dotenv()
 
@@ -36,8 +39,6 @@ BUTTON = (Path(__file__).parent.parent / 'corners/button.png').absolute()
 if not TARGET.exists():
     TARGET.mkdir()
 
-import numpy as np
-
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -48,6 +49,7 @@ class NpEncoder(json.JSONEncoder):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return super(NpEncoder, self).default(obj)
+
 
 @click.group()
 # @click.option('--count', default=1, help='Number of greetings.')
@@ -72,7 +74,7 @@ def coord(key, button):
     
     Keybind (-K) defaults to  'control+shift' on Windows' else 'command+shift'
     """
-    key = 'control+shift' if os.name in ('nt', 'posix') else 'command+shift'
+    key = 'command+shift' if platform.system() == 'Darwin' else 'control+shift'
     click.echo(
         f"""Instructions
         1. Go to the first page and move the mouse to the top left corner of the image to capture.
@@ -199,7 +201,10 @@ def capture(capture, pages, title, delay, button, key, coord=None):
 
     if capture:
         with Path(text).open(mode="wt") as fo:
-            fo.write(json.dumps(txt, cls=NpEncoder, indent=2))
+            fo.write(
+                reader_txt(txt)
+                # json.dumps(txt, cls=NpEncoder, indent=2)
+            )
 
         images = [
             Image.open(f'{PREFIX}/img{z:04}.png')
