@@ -200,7 +200,9 @@ def capture(capture, pages, title, delay, button, key, coord=None):
         # pyautogui.hotkey('command', 'right')
 
     if capture:
-        with Path(text).open(mode="wt") as fo:
+        target = Path(text)
+        click.echo(f'Writing to {target}')
+        with target.open(mode="wt") as fo:
             fo.write(
                 reader_txt(txt)
                 # json.dumps(txt, cls=NpEncoder, indent=2)

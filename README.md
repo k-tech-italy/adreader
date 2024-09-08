@@ -15,10 +15,10 @@ adreader coord
 
 ## Start capturing
 
-Simulate first 3 pages
+Capture first 3 pages with button
 
 ```shell
-adreader capture <title> -P 3
+adreader capture "<title>" --capture -B -P 3
 ```
 
 Capture until end of pages
@@ -27,3 +27,10 @@ Capture until end of pages
 adreader capture <title> --capture
 ```
 
+# Windows instructions
+
+User powershell
+```shell
+C:\Users\gigio\PROJS\adreader\.venv\Scripts\activate.bat
+C:\Users\gigio\PROJS\adreader\.venv\Scripts\adreader coord -B
+```
