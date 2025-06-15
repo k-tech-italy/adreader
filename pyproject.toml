@@ -1,33 +1,56 @@
-[tool.poetry]
+[project]
 name = "adreader"
 version = "0.1.0"
 description = ""
-authors = ["Giovanni Bronzini <g.bronzini@gmail.com>"]
+#authors = "Giovanni Bronzini <g.bronzini@gmail.com>"
+requires-python = ">=3.11"
 readme = "README.md"
+dependencies = [
+    "click>=8.1.8",
+    "easyocr>=1.7.2",
+    "jinja2>=3.1.6",
+    "keyboard>=0.13.5",
+    "opencv-python>=4.11.0.86",
+    "pillow>=11.1.0",
+    "pyautogui>=0.9.54",
+    "pymupdf>=1.26.0",
+    "pypdf>=5.4.0",
+    "pyscreeze>=1.0.1",
+    "pytesseract>=0.3.13",
+    "python-dotenv>=1.1.0",
+]
 
-[tool.poetry.scripts]
+[project.scripts]
 adreader = "adreader.cli:cli"
 
-[tool.poetry.dependencies]
-python = "^3.11"
-pyautogui = "^0.9.54"
-click = "^8.1.7"
-keyboard = "^0.13.5"
-pyscreeze = "^0.1.30"
-opencv-python = "^4.9.0.80"
-python-dotenv = "^1.0.1"
-easyocr = "^1.7.1"
-pillow = "^10.2.0"
-jinja2 = "^3.1.3"
-
-
-[tool.poetry.group.dev.dependencies]
-isort = "^5.13.2"
-flake8 = "^7.0.0"
-pre-commit = "^3.6.1"
-bumpversion = "^0.6.0"
-pytest = "^8.0.1"
+#[tool.poetry.dependencies]
+#python = "^3.11"
+#pyautogui = "^0.9.54"
+#click = "^8.1.7"
+#keyboard = "^0.13.5"
+#pyscreeze = "^0.1.30"
+#opencv-python = "^4.9.0.80"
+#python-dotenv = "^1.0.1"
+#easyocr = "^1.7.1"
+#pillow = "^10.2.0"
+#jinja2 = "^3.1.3"
+#
+#
+#[tool.poetry.group.dev.dependencies]
+#isort = "^5.13.2"
+#flake8 = "^7.0.0"
+#pre-commit = "^3.6.1"
+#bumpversion = "^0.6.0"
+#pytest = "^8.0.1"
+#
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "bumpversion>=0.6.0",
+    "pre-commit>=4.2.0",
+    "pytest>=8.3.5",
+]

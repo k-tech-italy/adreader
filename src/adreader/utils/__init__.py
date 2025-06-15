@@ -38,6 +38,6 @@ def make_tarfile(source_dir: Path, output_filename: str):
 
 
 def purge_png(source_dir: Path):
-    pngs = [x for x in source_dir.glob('*.png')] + [x for x in source_dir.glob('*.json')]
+    pngs = [x for x in source_dir.glob('*.png')] + [x for x in source_dir.glob('*.pdf')]
     for p in pngs:
         p.unlink()

@@ -1,24 +1,28 @@
 import json
 import os
 import platform
-import shutil
 import time
 from glob import glob
 from pathlib import Path
-from time import sleep
+
+import pymupdf
+from pypdf import PdfWriter
 
 import click
-import easyocr
 import keyboard
 import numpy as np
 import pyautogui
 from dotenv import load_dotenv
 from PIL import Image
 
+from adreader.capture import capture_text
+from adreader.config import env
 from adreader.gui import Box, Point
 from adreader.utils import chown, make_tarfile, purge_png
 from adreader.utils.cache import Cache
 from adreader.utils.renderer import reader_txt
+import pytesseract
+
 
 load_dotenv()
 
@@ -103,29 +107,32 @@ def coord(key, button):
     else:
         Cache().write(coord=box)
 
+pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
-def capture_text(im: Path):
-    start = time.time()
-    reader = easyocr.Reader(['en'])  # this needs to run only once to load the model into memory
-    result = reader.readtext(im)
-    tot = time.time() - start
-    print(f'Captured in {tot:2.2} sec')
-    return result
-
+# easyocr
+# def capture_text(im: Path):
+#     start = time.time()
+#     reader = easyocr.Reader(['en'])  # this needs to run only once to load the model into memory
+#     result = reader.readtext(im)
+#     tot = time.time() - start
+#     print(f'Captured in {tot:2.2} sec')
+#     return result
 
 @cli.command()
 @click.argument('title')
-@click.option('--coord', help='Screenshot area top-sx(x,y),bottm-dx(x,y) e.g. 200,100,100,500')
+@click.option('--coord', help='Screenshot area top-sx(x,y),bottom-dx(x,y) e.g. 200,100,100,500')
 @click.option('-K', '--key', default=None, help='Key to press for next screenshot. Eg. left')
 @click.option('-P', '--pages', help='Number of pages to capture', type=click.INT, default=0, show_default=True)
 @click.option('-D', '--delay', help='Number of of seconds to wait before starting capture', type=click.INT, default=3,
+              show_default=True)
+@click.option('-S', '--sleep', help='Number of of milliseconds to wait between page capture', type=click.INT, default=250,
               show_default=True)
 @click.option('--capture/--no-capture', default=False, help='Confirm capture. Otherwise simulate only')
 @click.option('-B', '--button/--no-button',
               is_flag=True, help='Use the button for going to next page',
               default=False,
               show_default=True)
-def capture(capture, pages, title, delay, button, key, coord=None):
+def capture(capture, pages, title, delay, button, key, sleep, coord=None):
     """Capture the screenshots"""
     cache = Cache().read()
     button = button and cache['button']
@@ -140,12 +147,12 @@ def capture(capture, pages, title, delay, button, key, coord=None):
         click.secho('ERROR: No cache found and no coord option provided', fg='red', bold=True)
         return
 
-    if (target := TARGET / title).exists():
+    if (target := (TARGET / title).with_suffix('.pdf')).exists():
         click.secho(f'ATTENTION It appears {title} folder already exists.', fg="yellow")
         if click.confirm('Do you want to override it?'):
-            shutil.rmtree(target)
+            target.unlink()
         else:
-            click.echo("Command aborted upon users's request")
+            click.echo("Command aborted upon user's request")
             return
 
     click.echo(f'Found coord {coord} in cache')
@@ -157,13 +164,13 @@ def capture(capture, pages, title, delay, button, key, coord=None):
     if not (root := Path(PREFIX)).exists():
         os.mkdir(root)
 
-    sleep(delay)
+    time.sleep(delay)
 
     if not key:
         go_next(box)
 
     if pages:
-        rng = range(pages)
+        rng = range(pages+1)
     else:
         rng = range(2000)
 
@@ -175,9 +182,10 @@ def capture(capture, pages, title, delay, button, key, coord=None):
     for f in files:
         os.remove(f)
 
+    texts = []
+
     for c in rng:
         loc = f'{PREFIX}/img{c:04}.png'
-        text = f'{PREFIX}/{title}.json'
         print(f'Writing {loc}')
         im = box.capture(loc)
         if capture:
@@ -192,37 +200,45 @@ def capture(capture, pages, title, delay, button, key, coord=None):
 
         go_next(box, button, key)
 
-        txt[c] = capture_text(str(Path(loc)))
+        texts.append(capture_text(str(Path(loc))))
 
         if not capture:
             Path(loc).unlink()
         # sleep(0.1)
         # pyautogui.hotkey('command', 'right')
+        if sleep:
+            time.sleep(sleep / 1000)
 
     if capture:
-        target = Path(text)
         click.echo(f'Writing to {target}')
-        with target.open(mode="wt") as fo:
-            fo.write(
-                reader_txt(txt)
-                # json.dumps(txt, cls=NpEncoder, indent=2)
-            )
+        merger = PdfWriter()
+        for txt in texts:
+            merger.append(txt)
+        merger.write(target)
+        merger.close()
 
-        images = [
-            Image.open(f'{PREFIX}/img{z:04}.png')
-            for z in range(pages or c)
-        ]
-        pdf_path = f'{PREFIX}/{title}.pdf'
-        images[0].save(
-            pdf_path, "PDF", resolution=100.0, save_all=True, append_images=images[1:]
-        )
-        make_tarfile(PREFIX, f'{PREFIX}/{title}.tgz')
+        # target = Path(text)
+        # with target.open(mode="wt") as fo:
+        #     fo.write(
+        #         reader_txt(txt)
+        #         # json.dumps(txt, cls=NpEncoder, indent=2)
+        #     )
+        #
+        # images = [
+        #     Image.open(f'{PREFIX}/img{z:04}.png')
+        #     for z in range(pages or c)
+        # ]
+        # pdf_path = f'{PREFIX}/{title}.pdf'
+        # images[0].save(
+        #     pdf_path, "PDF", resolution=100.0, save_all=True, append_images=images[1:]
+        # )
+        # make_tarfile(PREFIX, f'{PREFIX}/{title}.tgz')
         purge_png(PREFIX)
 
-    if os.name != 'nt':
+    if os.name != 'nt' and env['CHOWN']:
         chown(str(PREFIX), UID, GID)
 
-    Path(PREFIX).rename(target)
+    # Path(PREFIX).rename(target)
 
 
 def go_next(box, button=None, key=None):
@@ -237,4 +253,26 @@ def go_next(box, button=None, key=None):
         pyautogui.click(box.tl.x + 5, middle)
         pyautogui.moveTo(box.tl.x - 20, middle)  # move away
 
-    sleep(THINK)
+    time.sleep(THINK)
+
+
+@cli.command()
+@click.argument('file', type=click.Path(exists=False), required=False)
+def extract(file=None):
+    """Extract the text from the PDF"""
+    while not file:
+        file = click.prompt('Enter the PDF file to extract')
+        if file.lower() == 'q':
+            click.echo('Bye')
+            exit(0)
+        if not Path(file).exists():
+            click.secho(f'ERROR: {file} does not exist', fg='red', bold=True)
+            file = None
+    file=Path(file)
+    target = file.with_suffix('.txt')
+    with pymupdf.open(file) as doc:  # open document
+        text = chr(12).join([page.get_text() for page in doc])
+
+    # now work with the text, e.g. store as a UTF8-encoded file
+    target.write_bytes(text.encode())
+
