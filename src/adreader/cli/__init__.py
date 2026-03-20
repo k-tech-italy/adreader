@@ -13,18 +13,21 @@ import keyboard
 import numpy as np
 import pyautogui
 from dotenv import load_dotenv
-from PIL import Image
 
 from adreader.capture import capture_text
 from adreader.config import env
 from adreader.gui import Box, Point
-from adreader.utils import chown, make_tarfile, purge_png
+from adreader.utils import chown, purge_png
 from adreader.utils.cache import Cache
-from adreader.utils.renderer import reader_txt
 import pytesseract
 
 
 load_dotenv()
+
+if cmd := env['TESSERACT_CMD']:
+    ''
+    pytesseract.pytesseract.tesseract_cmd = cmd
+    print(f'Using {cmd} for Tesseract')
 
 UID = 501
 GID = 20
@@ -67,8 +70,8 @@ def cli():
 @click.option(
     '-K', '--key',
     help='Key to press to capture coordinates',
-    default=lambda *args, **kwargs: 'control+shift' if os.name in ('nt', 'posix') else
-    'command+shift', show_default=True)
+    default=lambda *args, **kwargs: 'command+right shift' if platform.system() == 'Darwin' else
+    'control+shift', show_default=True)
 @click.option('-B', '--button/--no-button',
               is_flag=True, help='Capture coordinates for next button',
               default=False,
@@ -78,7 +81,7 @@ def coord(key, button):
     
     Keybind (-K) defaults to  'control+shift' on Windows' else 'command+shift'
     """
-    key = 'command+shift' if platform.system() == 'Darwin' else 'control+shift'
+    key = key or ('command+shift' if platform.system() == 'Darwin' else 'control+shift')
     click.echo(
         f"""Instructions
         1. Go to the first page and move the mouse to the top left corner of the image to capture.
